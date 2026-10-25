@@ -6,3 +6,6 @@ db.sqlite3
 .env
 .coverage
 coverage_html/
+cli/target/
+staticfiles/
+

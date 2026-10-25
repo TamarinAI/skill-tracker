@@ -24,8 +24,10 @@ class Member(models.Model):
     discord_username = models.CharField(max_length=100, blank=True)
     email = models.EmailField(blank=True, db_index=True)
     display_name = models.CharField(max_length=200, blank=True)
+    avatar_url = models.URLField(blank=True)
     is_admin = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    last_login_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self) -> str:
         return self.display_name or self.discord_username or str(self.discord_id)
@@ -176,7 +178,9 @@ class Lesson(models.Model):
     """A training lesson under an equipment group; admin-editable content."""
 
     group = models.ForeignKey(EquipmentGroup, on_delete=models.CASCADE, related_name="lessons")
+    slug = models.SlugField(max_length=300, unique=True, blank=True)
     title = models.CharField(max_length=300)
+    summary = models.CharField(max_length=500, blank=True)
     body_markdown = models.TextField(blank=True)
     points = models.DecimalField(max_digits=6, decimal_places=2, default=0)
     requires_induction = models.ForeignKey(
@@ -222,15 +226,36 @@ class LessonCompletion(models.Model):
         ordering = ["-completed_at"]
 
 
-class ActionItem(models.Model):
-    """Notion action item mirrored; completion awards the member points."""
+class QuizAttempt(models.Model):
+    """One graded attempt at a lesson quiz (server-side grading)."""
 
-    notion_page_id = models.CharField(max_length=64, unique=True)
+    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name="quiz_attempts")
+    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name="quiz_attempts")
+    score = models.PositiveSmallIntegerField(help_text="Percent correct")
+    passed = models.BooleanField(default=False)
+    answers = models.JSONField(default=list, help_text="Answer index per question")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.member} — {self.lesson} ({self.score}%)"
+
+
+class ActionItem(models.Model):
+    """Notion action item mirrored; completion awards the member points.
+
+    Locally-created items (via the API) have no notion_page_id until synced.
+    """
+
+    notion_page_id = models.CharField(max_length=64, unique=True, blank=True, null=True)
     member = models.ForeignKey(
         Member, null=True, blank=True, on_delete=models.SET_NULL, related_name="action_items"
     )
     title = models.CharField(max_length=300)
     project = models.CharField(max_length=200, blank=True)
+    due_date = models.DateField(null=True, blank=True)
     done = models.BooleanField(default=False)
     points = models.DecimalField(max_digits=6, decimal_places=2, default=0)
     completed_at = models.DateTimeField(null=True, blank=True)

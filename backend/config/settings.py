@@ -14,21 +14,41 @@ DEBUG = os.environ.get("DJANGO_DEBUG", "false").lower() == "true"
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
 INSTALLED_APPS = [
+    "django.contrib.admin",
     "django.contrib.contenttypes",
     "django.contrib.auth",
+    "django.contrib.sessions",
+    "django.contrib.messages",
     "django.contrib.staticfiles",
     "skills",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "skills.middleware.CorsMiddleware",
     "skills.middleware.ApiTokenMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
 
-TEMPLATES = []
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+            ],
+        },
+    },
+]
 
 DATABASES = {
     "default": {
@@ -56,3 +76,24 @@ def _load_token() -> str:
 
 
 SKILL_TRACKER_TOKEN = _load_token()
+
+# --- Discord OAuth (training site login) -----------------------------------
+DISCORD_CLIENT_ID = os.environ.get("DISCORD_CLIENT_ID", "")
+DISCORD_CLIENT_SECRET = os.environ.get("DISCORD_CLIENT_SECRET", "")  # noqa: S105
+DISCORD_REDIRECT_URI = os.environ.get(
+    "DISCORD_REDIRECT_URI", "http://127.0.0.1:8731/api/auth/discord/callback/"
+)
+# Comma-separated Discord snowflakes auto-promoted to is_admin on login.
+DISCORD_ADMIN_IDS = os.environ.get("DISCORD_ADMIN_IDS", "")
+
+# Where the SPA lives; OAuth callback redirects there with #token=...
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "")
+
+# Origins allowed to call the API from a browser.
+CORS_ALLOWED_ORIGINS = [
+    o.strip()
+    for o in os.environ.get(
+        "CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+    ).split(",")
+    if o.strip()
+]
